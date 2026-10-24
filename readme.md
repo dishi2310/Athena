@@ -1,4 +1,3 @@
-
 # Athena — Desktop Application
 
 An independent desktop application project developed as part of the Desktop Application course at Newton School of Technology, ADY Patil University.
@@ -44,13 +43,13 @@ Athena is a desktop application designed to provide a user-friendly and interact
 ### 1. Clone the repository
 
 ```bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
+git clone https://github.com/dishi2310/Athena.git
 ```
 
 ### 2. Navigate to the project directory
 
 ```bash
-cd <YOUR_PROJECT_FOLDER>
+cd Athena
 ```
 
 ### 3. Install dependencies
@@ -61,24 +60,36 @@ npm install
 
 ### 4. Run the application
 
-Use the development commands configured in `package.json` to start the frontend and Electron application.
+Use the development commands configured in `package.json` to start the frontend and Electron application:
+
+```bash
+# Start the Vite development server
+npm run dev
+
+# In a separate terminal, launch Electron
+npm run start
+```
 
 ## 📂 Project Structure
 
 ```text
 Athena/
 ├── electron/
-│   └── main.cjs
+│   ├── main.cjs
+│   ├── preload.cjs
+│   └── cameraFeed/
 ├── src/
 │   ├── components/
 │   ├── assets/
 │   ├── App.jsx
+│   ├── App.css
+│   ├── index.css
 │   └── main.jsx
 ├── public/
 ├── index.html
 ├── package.json
 ├── vite.config.js
-└── README.md
+└── readme.md
 ```
 
 *The project structure may change as development progresses.*
