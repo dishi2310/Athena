@@ -25,7 +25,8 @@ ipcMain.handle("full-screen", () => {
 let end_time = null;
 
 ipcMain.handle("start-test", () => {
-  end_time = Date.now() + 60 * 60 * 60;
+  // Set 60 minutes countdown (60 * 60 * 1000 ms)
+  end_time = Date.now() + 60 * 60 * 1000;
 });
 
 ipcMain.handle("get-time", () => {

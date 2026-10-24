@@ -1,82 +1,128 @@
 import { useEffect, useRef, useState } from "react";
+import CameraMonitor from "./components/CameraMonitor";
+import SetupScreen from "./components/SetupScreen";
+import ExamScreen from "./components/ExamScreen";
+import ResultScreen from "./components/ResultScreen";
 import "./App.css";
 
-function App() {
-  const videoRef = useRef(null);
-  const imageCaptureRef = useRef(null);
+// Exam stages: "setup" -> "in-progress" -> "completed"
+const STAGES = {
+  SETUP: "setup",
+  IN_PROGRESS: "in-progress",
+  COMPLETED: "completed",
+};
 
-  const [time, setTime] = useState(0);
-  const [started, setStarted] = useState(false);
+export default function App() {
+  const [stage, setStage] = useState(STAGES.SETUP);
   const [cameraReady, setCameraReady] = useState(false);
+  const [fullscreenReady, setFullscreenReady] = useState(false);
+  const [remainingTime, setRemainingTime] = useState(60 * 60 * 1000); // 60 minutes default
 
-  async function getLaspedTime() {
-    const currTime = await window.electronAPI.getRemainingTime();
-    setTime(currTime);
-  }
+  const cameraMonitorRef = useRef(null);
 
+  // Sync remaining time when exam is in progress
   useEffect(() => {
-    if (!started) return;
+    if (stage !== STAGES.IN_PROGRESS) return;
 
-    const interval = setInterval(() => {
-      getLaspedTime();
-    }, 1000);
+    async function updateTime() {
+      if (window.electronAPI?.getRemainingTime) {
+        const ms = await window.electronAPI.getRemainingTime();
+        if (typeof ms === "number" && !isNaN(ms)) {
+          if (ms <= 0) {
+            setRemainingTime(0);
+            setStage(STAGES.COMPLETED);
+            return;
+          }
+          setRemainingTime(ms);
+          return;
+        }
+      }
 
-    return () => clearInterval(interval);
-  }, [started]);
-
-  async function getCamera() {
-    const videoData = await navigator.mediaDevices.getUserMedia({
-      video: true,
-    });
-
-    videoRef.current.srcObject = videoData;
-    
-    const track = videoData.getVideoTracks()[0];
-    imageCaptureRef.current = new ImageCapture(track);
-    
-    setCameraReady(true);
-  }
-
-  async function clickPhoto(){
-    const blob = await imageCaptureRef.current.takePhoto();
-    const buffer = await blob.arrayBuffer();
-    await window.electronAPI.savePhoto(buffer);
-    // Convert ArrayBuffer - bytes 
-    // Save 
-  }
-
-  useEffect(() => {
-    if(!started) return;
-    const id = setInterval(() => {
-      clickPhoto();
-    },5000)
-
-    return () => {
-      clearInterval(id)
+      // Fallback local countdown if running in normal web browser
+      setRemainingTime((prev) => {
+        if (prev <= 1000) {
+          setStage(STAGES.COMPLETED);
+          return 0;
+        }
+        return prev - 1000;
+      });
     }
-  },[started])
 
-  async function getFullscreen() {
-    await window.electronAPI.setFullScreen();
+    const intervalId = setInterval(updateTime, 1000);
+    return () => clearInterval(intervalId);
+  }, [stage]);
+
+  // Request camera access via CameraMonitor ref
+  async function handleRequestCamera() {
+    if (cameraMonitorRef.current) {
+      const granted = await cameraMonitorRef.current.requestCamera();
+      setCameraReady(Boolean(granted));
+    }
   }
 
-  async function startTest() {
-    await window.electronAPI.showExamRules();
-    setStarted(true);
+  // Request fullscreen mode (Electron kiosk or Browser Fullscreen API)
+  async function handleRequestFullscreen() {
+    try {
+      if (window.electronAPI?.setFullScreen) {
+        await window.electronAPI.setFullScreen();
+      } else if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+      }
+      setFullscreenReady(true);
+    } catch (err) {
+      console.warn("Fullscreen request error:", err);
+      // Still mark ready to not block the user
+      setFullscreenReady(true);
+    }
   }
-  // await window.electronAPI.startTest();
-  // setStarted(true);
 
+  // Show exam rules dialog and transition to exam stage
+  async function handleStartExam() {
+    if (!cameraReady) {
+      alert("Please configure and allow camera access before starting the test.");
+      return;
+    }
+
+    if (window.electronAPI?.showExamRules) {
+      const response = await window.electronAPI.showExamRules();
+      // In Electron dialog: 0 is "Cancel", 1 is "Accept"
+      if (response === 0) {
+        return;
+      }
+    }
+
+    if (window.electronAPI?.startTest) {
+      await window.electronAPI.startTest();
+    }
+
+    setStage(STAGES.IN_PROGRESS);
+  }
+
+  // Conclude the exam
+  function handleEndExam() {
+    const confirmEnd = window.confirm("Are you sure you want to end and submit the test?");
+    if (confirmEnd) {
+      setStage(STAGES.COMPLETED);
+    }
+  }
+
+  // Reset back to setup screen
+  function handleRestart() {
+    setStage(STAGES.SETUP);
+    setRemainingTime(60 * 60 * 1000);
+  }
+
+  // Format milliseconds into HH:MM:SS
   function formatTimeLeft(ms) {
-    const seconds = Math.floor((ms / 1000) % 60)
+    if (ms <= 0 || isNaN(ms)) return "00:00:00";
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600)
       .toString()
       .padStart(2, "0");
-
-    const minutes = Math.floor((ms / (1000 * 60)) % 60)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
       .toString()
       .padStart(2, "0");
-
-    const hours = Math.floor(ms / (1000 * 60 * 60))
+    const seconds = Math.floor(totalSeconds % 60)
       .toString()
       .padStart(2, "0");
 
@@ -85,63 +131,38 @@ function App() {
 
   return (
     <>
-      <video
-        ref={videoRef}
-        autoPlay
-        muted
-        className={cameraReady && !started ? "video-preview" : "hidden-video"}
+      {/* Background camera streamer & automated snapshot taker */}
+      <CameraMonitor
+        ref={cameraMonitorRef}
+        isSetupStage={stage === STAGES.SETUP}
+        isExamStage={stage === STAGES.IN_PROGRESS}
+        onCameraReady={setCameraReady}
       />
 
-      <div className="page-container">
-        <div className="header-section">
-          <h1>Hi User!</h1>
-          <p>Kindly Allow the following Permissions to Start the test:</p>
-        </div>
+      {/* Stage 1: Setup & Permissions */}
+      {stage === STAGES.SETUP && (
+        <SetupScreen
+          cameraReady={cameraReady}
+          onRequestCamera={handleRequestCamera}
+          fullscreenReady={fullscreenReady}
+          onRequestFullscreen={handleRequestFullscreen}
+          onStartExam={handleStartExam}
+        />
+      )}
 
-        <div className="card-container">
-          <div className="permission-item">
-            <div className="permission-icon">↗</div>
-            <div className="permission-content">
-              <h3>Configure Camera</h3>
-              <p>Kindly configure Camera to attempt quiz/contests.</p>
-              <div className="action-row">
-                <button onClick={getCamera} className="btn btn-dark">
-                  Get Camera Access
-                </button>
-              </div>
-              {cameraReady && <div className="camera-space" />}
-            </div>
-          </div>
+      {/* Stage 2: Active Exam Screen */}
+      {stage === STAGES.IN_PROGRESS && (
+        <ExamScreen
+          remainingTime={remainingTime}
+          formatTimeLeft={formatTimeLeft}
+          onEndExam={handleEndExam}
+        />
+      )}
 
-          <div className="divider" />
-
-          {/* Fullscreen */}
-
-          <div className="permission-item">
-            <div className="permission-icon">⛶</div>
-
-            <div className="permission-content">
-              <h3>Switch to full screen</h3>
-
-              <p>Kindly close all tabs and switch to full screen.</p>
-
-              <button onClick={getFullscreen} className="btn btn-light-blue">
-                Give Full Screen Permissions
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="bottom-actions">
-          <button onClick={startTest} className="btn btn-light-blue">
-            Go To Test
-          </button>
-          <button className="btn btn-outline">Need Help?</button>
-        </div>
-        <p>Time Left : {formatTimeLeft(time)}</p>
-      </div>
+      {/* Stage 3: Results / Completed Screen */}
+      {stage === STAGES.COMPLETED && (
+        <ResultScreen onRestart={handleRestart} />
+      )}
     </>
   );
 }
-
-export default App;
