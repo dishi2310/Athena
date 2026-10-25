@@ -2,16 +2,21 @@ import { useState } from "react";
 import { MOCK_QUESTIONS } from "../data/mockQuestions";
 
 /**
- * ResultScreen component evaluates the student's answers,
- * calculates score, displays proctoring integrity logs,
- * and provides an itemized answer review.
+ * ResultScreen component evaluates student performance with:
+ * - Grade badges and time-taken analytics
+ * - Category-by-category proficiency progress bars
+ * - Proctoring session audit logs
+ * - Export Report (JSON & Printable PDF)
+ * - Detailed question-by-question answer review
  */
 export default function ResultScreen({
   questions = MOCK_QUESTIONS,
   answers = {},
   violations = [],
   terminationReason = null,
+  timeSpentMs = 0,
   onRestart,
+  onQuitApp,
 }) {
   const [showReview, setShowReview] = useState(false);
   const [showIntegrityLog, setShowIntegrityLog] = useState(false);
@@ -20,11 +25,21 @@ export default function ResultScreen({
   let correctCount = 0;
   let incorrectCount = 0;
 
+  // Category performance mapping
+  const categoryStats = {};
+
   questions.forEach((q, idx) => {
+    const cat = q.category || "General";
+    if (!categoryStats[cat]) {
+      categoryStats[cat] = { total: 0, correct: 0 };
+    }
+    categoryStats[cat].total += 1;
+
     const userChoice = answers[idx];
     if (userChoice !== undefined) {
       if (userChoice === q.correctAnswer) {
         correctCount += 1;
+        categoryStats[cat].correct += 1;
       } else {
         incorrectCount += 1;
       }
@@ -33,18 +48,88 @@ export default function ResultScreen({
 
   const unattemptedCount = totalQuestions - (correctCount + incorrectCount);
   const percentage = Math.round((correctCount / totalQuestions) * 100);
-  const isPassed = percentage >= 60 && !terminationReason;
   const violationCount = violations.length;
 
+  // Calculate grade
+  let grade = "F";
+  let gradeLabel = "Needs Improvement";
+  let gradeColor = "#ef4444";
+
+  if (percentage >= 90) {
+    grade = "A+";
+    gradeLabel = "Outstanding (Distinction)";
+    gradeColor = "#059669";
+  } else if (percentage >= 75) {
+    grade = "A";
+    gradeLabel = "Excellent";
+    gradeColor = "#10b981";
+  } else if (percentage >= 60) {
+    grade = "B";
+    gradeLabel = "Qualified (Pass)";
+    gradeColor = "#2563eb";
+  } else if (percentage >= 45) {
+    grade = "C";
+    gradeLabel = "Satisfactory";
+    gradeColor = "#f59e0b";
+  }
+
+  // Format time taken
+  function formatDuration(ms) {
+    if (!ms || ms <= 0) return "0m 00s";
+    const totalSec = Math.floor(ms / 1000);
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return `${mins}m ${secs.toString().padStart(2, "0")}s`;
+  }
+
+  // Export report as JSON file
+  function handleExportJSON() {
+    const reportData = {
+      assessment: "Athena Desktop Examination",
+      generatedAt: new Date().toISOString(),
+      studentScore: `${correctCount}/${totalQuestions}`,
+      percentage: `${percentage}%`,
+      grade,
+      timeTaken: formatDuration(timeSpentMs),
+      proctoringIncidents: violationCount,
+      violationsList: violations,
+      answersSummary: questions.map((q, idx) => ({
+        questionId: q.id,
+        category: q.category,
+        question: q.question,
+        selectedOption: answers[idx] !== undefined ? q.options[answers[idx]] : "Skipped",
+        correctOption: q.options[q.correctAnswer],
+        isCorrect: answers[idx] === q.correctAnswer,
+      })),
+    };
+
+    const blob = new Blob([JSON.stringify(reportData, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Athena-Assessment-Report-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // Print report
+  function handlePrint() {
+    window.print();
+  }
+
   return (
-    <div className="page-container">
+    <div className="page-container result-page">
       <div className="header-section">
-        <h1>Assessment Report</h1>
-        <p>Review your exam performance and proctored submission summary.</p>
+        <h1>Assessment Report & Performance Analytics</h1>
+        <p>Verified summary of test responses, time management, and proctoring audit.</p>
       </div>
 
       <div className="card-container result-card-main">
-        {/* Termination Alert if forced submit occurred */}
+        {/* Termination Alert */}
         {terminationReason && (
           <div className="termination-banner">
             <span className="termination-icon">⛔</span>
@@ -55,24 +140,20 @@ export default function ResultScreen({
           </div>
         )}
 
-        {/* Score Banner */}
+        {/* Score & Grade Hero Banner */}
         <div className="result-score-banner">
-          <div className="result-badge-icon">
-            {terminationReason ? "⚠️" : isPassed ? "🎯" : "📝"}
+          <div className="grade-badge-circle" style={{ borderColor: gradeColor, color: gradeColor }}>
+            {grade}
           </div>
           <h2 className="result-score-title">
             Score: {correctCount} / {totalQuestions} ({percentage}%)
           </h2>
           <p className="result-score-subtitle">
-            {terminationReason
-              ? "Exam ended due to proctoring policy violation."
-              : isPassed
-              ? "Congratulations! You successfully passed the assessment."
-              : "Assessment submitted. Review the explanations below to improve."}
+            Performance Rating: <strong>{gradeLabel}</strong>
           </p>
         </div>
 
-        {/* Metric Cards */}
+        {/* 4 Key Metrics Cards */}
         <div className="result-metrics-grid">
           <div className="metric-box metric-correct">
             <span className="metric-number">{correctCount}</span>
@@ -84,11 +165,45 @@ export default function ResultScreen({
           </div>
           <div className="metric-box metric-unattempted">
             <span className="metric-number">{unattemptedCount}</span>
-            <span className="metric-label">Unattempted</span>
+            <span className="metric-label">Skipped</span>
           </div>
-          <div className="metric-box metric-accuracy">
-            <span className="metric-number">{percentage}%</span>
-            <span className="metric-label">Accuracy</span>
+          <div className="metric-box metric-time">
+            <span className="metric-number" style={{ fontSize: "20px" }}>{formatDuration(timeSpentMs)}</span>
+            <span className="metric-label">Time Taken</span>
+          </div>
+        </div>
+
+        {/* Category Performance Breakdown */}
+        <div className="category-performance-section">
+          <h4 className="section-subheading">Subject Proficiency Breakdown</h4>
+          <div className="category-bars-list">
+            {Object.entries(categoryStats).map(([catName, stats]) => {
+              const catPercent = Math.round((stats.correct / stats.total) * 100);
+              return (
+                <div key={catName} className="category-progress-item">
+                  <div className="category-label-row">
+                    <span className="category-name">{catName}</span>
+                    <span className="category-score">
+                      {stats.correct}/{stats.total} ({catPercent}%)
+                    </span>
+                  </div>
+                  <div className="category-progress-track">
+                    <div
+                      className="category-progress-fill"
+                      style={{
+                        width: `${catPercent}%`,
+                        backgroundColor:
+                          catPercent >= 70
+                            ? "#10b981"
+                            : catPercent >= 40
+                            ? "#f59e0b"
+                            : "#ef4444",
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -101,13 +216,13 @@ export default function ResultScreen({
               </span>
               <div>
                 <h4>
-                  Proctoring Status:{" "}
+                  Proctoring Audit:{" "}
                   {violationCount === 0 ? "Clean Session (Verified)" : `Flagged (${violationCount} Incident${violationCount > 1 ? "s" : ""})`}
                 </h4>
                 <p>
                   {violationCount === 0
-                    ? "No window switching, copy-paste, or focus violations detected."
-                    : `${violationCount} focus loss / window change events recorded during the active test.`}
+                    ? "Full integrity maintained: No window switching or prohibited shortcuts detected."
+                    : `${violationCount} window focus loss event(s) logged during testing.`}
                 </p>
               </div>
             </div>
@@ -123,7 +238,7 @@ export default function ResultScreen({
             )}
           </div>
 
-          {/* Detailed Incident Log Table */}
+          {/* Incident Log Table */}
           {showIntegrityLog && violationCount > 0 && (
             <div className="incident-log-table">
               <div className="incident-row incident-header-row">
@@ -142,17 +257,32 @@ export default function ResultScreen({
           )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="result-actions">
+        {/* Report Action Buttons */}
+        <div className="result-actions no-print">
           <button
             onClick={() => setShowReview((prev) => !prev)}
             className="btn btn-outline"
           >
             {showReview ? "Hide Question Review" : "Review All Questions & Answers"}
           </button>
+
+          <button onClick={handleExportJSON} className="btn btn-outline">
+            💾 Export JSON
+          </button>
+
+          <button onClick={handlePrint} className="btn btn-outline">
+            🖨️ Print Report
+          </button>
+
           <button onClick={onRestart} className="btn btn-dark">
             Take Another Test
           </button>
+
+          {onQuitApp && (
+            <button onClick={onQuitApp} className="btn btn-outline btn-quit">
+              Exit App
+            </button>
+          )}
         </div>
 
         {/* Detailed Question Review List */}
@@ -182,7 +312,7 @@ export default function ResultScreen({
                 <div key={q.id} className="review-question-card">
                   <div className="review-question-header">
                     <span className="review-question-number">
-                      Question {idx + 1}
+                      Question {idx + 1} • <span style={{ fontWeight: 400 }}>{q.category}</span>
                     </span>
                     <span className={`review-status-pill ${statusClass}`}>
                       {statusLabel}

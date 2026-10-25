@@ -26,5 +26,6 @@ dist-ssr
 # Captured test feeds
 electron/cameraFeed/*.jpeg
 electron/cameraFeed/*.jpg
+electron/cameraFeed/*.json
 !electron/cameraFeed/.gitkeep
 

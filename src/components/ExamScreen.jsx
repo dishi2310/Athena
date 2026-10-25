@@ -109,6 +109,10 @@ export default function ExamScreen({
   const answeredCount = Object.keys(answers).length;
   const unansweredCount = totalQuestions - answeredCount;
 
+  const isTimeCritical = remainingTime <= 60 * 1000;
+  const isTimeWarning = remainingTime <= 5 * 60 * 1000;
+  const timerClass = isTimeCritical ? "timer-critical" : isTimeWarning ? "timer-warning" : "timer-normal";
+
   return (
     <div className="exam-page unselectable-exam">
       {/* Active Anti-Cheating Alerts & Notifications */}
@@ -129,8 +133,10 @@ export default function ExamScreen({
                 Proctoring Active • Warnings: {violationCount}/{maxWarnings}
               </span>
             </div>
-            <span className="exam-timer">
+            <span className={`exam-timer ${timerClass}`}>
               ⏱ Time Left: <strong>{formatTimeLeft(remainingTime)}</strong>
+              {isTimeCritical && <span className="timer-badge-urgent">Final Minute!</span>}
+              {!isTimeCritical && isTimeWarning && <span className="timer-badge-warning">&lt; 5m left</span>}
             </span>
           </div>
 

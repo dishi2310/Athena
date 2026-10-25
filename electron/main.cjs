@@ -28,7 +28,20 @@ function createWindow() {
 }
 
 ipcMain.handle("full-screen", () => {
-  win.kiosk = true;
+  if (win) {
+    win.kiosk = true;
+  }
+});
+
+ipcMain.handle("exit-fullscreen", () => {
+  if (win) {
+    win.kiosk = false;
+    win.setFullScreen(false);
+  }
+});
+
+ipcMain.handle("quit-app", () => {
+  app.quit();
 });
 
 let end_time = null;

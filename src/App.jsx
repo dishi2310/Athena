@@ -21,6 +21,8 @@ export default function App() {
   const [userAnswers, setUserAnswers] = useState({});
   const [violations, setViolations] = useState([]);
   const [terminationReason, setTerminationReason] = useState(null);
+  const [startTime, setStartTime] = useState(null);
+  const [timeSpentMs, setTimeSpentMs] = useState(0);
 
   const cameraMonitorRef = useRef(null);
 
@@ -99,6 +101,7 @@ export default function App() {
       await window.electronAPI.startTest();
     }
 
+    setStartTime(Date.now());
     setStage(STAGES.IN_PROGRESS);
   }
 
@@ -129,18 +132,37 @@ export default function App() {
     if (reason) {
       setTerminationReason(reason);
     }
+    const elapsed = startTime ? Date.now() - startTime : 60 * 60 * 1000 - remainingTime;
+    setTimeSpentMs(elapsed);
     setStage(STAGES.COMPLETED);
+
+    // Gracefully exit kiosk mode
+    if (window.electronAPI?.exitFullScreen) {
+      window.electronAPI.exitFullScreen();
+    } else if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    }
 
     // Save session logs via Electron IPC
     if (window.electronAPI?.saveLog) {
       window.electronAPI.saveLog({
         sessionId: `athena-${Date.now()}`,
         submittedAt: new Date().toISOString(),
+        timeSpentMs: elapsed,
         terminationReason: reason,
         answers: userAnswers,
         violationsCount: violations.length,
         violationsList: violations,
       });
+    }
+  }
+
+  // Quit desktop application
+  function handleQuitApp() {
+    if (window.electronAPI?.quitApp) {
+      window.electronAPI.quitApp();
+    } else {
+      window.close();
     }
   }
 
@@ -150,6 +172,8 @@ export default function App() {
     setUserAnswers({});
     setViolations([]);
     setTerminationReason(null);
+    setStartTime(null);
+    setTimeSpentMs(0);
     setRemainingTime(60 * 60 * 1000);
   }
 
@@ -205,14 +229,17 @@ export default function App() {
         />
       )}
 
-      {/* Stage 3: Results / Completed Screen with Proctoring Report */}
+      {/* Stage 3: Results / Completed Screen with Proctoring & Analytics */}
       {stage === STAGES.COMPLETED && (
         <ResultScreen
           questions={MOCK_QUESTIONS}
           answers={userAnswers}
           violations={violations}
           terminationReason={terminationReason}
+          timeSpentMs={timeSpentMs}
+          formatTimeLeft={formatTimeLeft}
           onRestart={handleRestart}
+          onQuitApp={handleQuitApp}
         />
       )}
     </>
