@@ -14,7 +14,13 @@ function createWindow() {
     },
   });
 
-  win.loadURL("http://localhost:5173/");
+  win.loadURL("http://localhost:5173/").catch(() => {
+    // If the Vite dev server is not running, fall back to built production files
+    const distPath = path.join(__dirname, "../dist/index.html");
+    if (fs.existsSync(distPath)) {
+      win.loadFile(distPath);
+    }
+  });
   win.webContents.openDevTools({ mode: "detach" });
 }
 
