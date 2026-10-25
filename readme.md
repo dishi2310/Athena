@@ -60,35 +60,43 @@ npm install
 
 ### 4. Run the application
 
-Use the development commands configured in `package.json` to start the frontend and Electron application:
+Start both the Vite development server and Electron desktop window simultaneously with a single command:
 
 ```bash
-# Start the Vite development server
-npm run dev
-
-# In a separate terminal, launch Electron
-npm run start
+npm run app
 ```
+
+*(Alternatively, you can run `npm run dev` in one terminal and `npm run start` in another).*
 
 ## 📂 Project Structure
 
 ```text
 Athena/
 ├── electron/
-│   ├── main.cjs
-│   ├── preload.cjs
-│   └── cameraFeed/
+│   ├── main.cjs             # Main process (Window management, IPC handlers, Kiosk mode)
+│   ├── preload.cjs          # Context bridge exposing secure Electron APIs
+│   └── cameraFeed/          # Storage for proctoring webcam captures & session logs
 ├── src/
 │   ├── components/
+│   │   ├── CameraMonitor.jsx      # Webcam stream & automated periodic snapshots
+│   │   ├── SetupScreen.jsx        # Camera & fullscreen permission checklist
+│   │   ├── ExamScreen.jsx         # Live exam interface with countdown & navigation
+│   │   ├── QuestionPalette.jsx    # Visual question matrix & 1-click jump grid
+│   │   ├── ProctoringAlerts.jsx   # Focus loss modal warnings & floating toasts
+│   │   └── ResultScreen.jsx       # Scoring, analytics, proficiency bars, and PDF print
+│   ├── data/
+│   │   └── mockQuestions.js       # Curated question bank with categories & explanations
+│   ├── hooks/
+│   │   └── useProctoring.js       # Anti-cheating hook (blur, shortcuts, clipboard blocker)
 │   ├── assets/
-│   ├── App.jsx
-│   ├── App.css
+│   ├── App.jsx                    # Central state machine (setup -> in-progress -> completed)
+│   ├── App.css                    # Complete responsive stylesheets
 │   ├── index.css
 │   └── main.jsx
 ├── public/
 ├── index.html
 ├── package.json
-├── vite.config.js
+├── vite.config.mjs
 └── readme.md
 ```
 
