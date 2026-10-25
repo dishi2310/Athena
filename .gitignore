@@ -29,3 +29,7 @@ electron/cameraFeed/*.jpg
 electron/cameraFeed/*.json
 !electron/cameraFeed/.gitkeep
 
+
+# Generated build files
+/release/
+/dist/
