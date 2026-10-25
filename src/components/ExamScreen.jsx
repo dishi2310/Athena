@@ -1,60 +1,62 @@
 import { useState } from "react";
-
-// Initial sample question set for Step 1
-const SAMPLE_QUESTIONS = [
-  {
-    id: 1,
-    question: "What is the primary role of the Main process in an Electron desktop application?",
-    options: [
-      "Rendering UI elements and handling CSS animations",
-      "Managing native application lifecycle and creating BrowserWindows",
-      "Parsing client-side JSX templates in real time",
-      "Handling local browser storage and cookies only",
-    ],
-  },
-  {
-    id: 2,
-    question: "Which Electron feature is used to securely expose Node APIs to the frontend renderer?",
-    options: [
-      "remote module",
-      "contextBridge with preload scripts",
-      "eval() function",
-      "window.postMessage only",
-    ],
-  },
-  {
-    id: 3,
-    question: "In React, what hook is used to perform side effects like starting a timer or webcam feed?",
-    options: ["useState", "useMemo", "useEffect", "useCallback"],
-  },
-];
+import QuestionPalette from "./QuestionPalette";
+import { MOCK_QUESTIONS } from "../data/mockQuestions";
 
 /**
- * ExamScreen component renders the active test environment,
- * question cards, options, navigation buttons, and countdown timer.
+ * ExamScreen component manages question display, option selections,
+ * review flags, navigation, and the visual question palette.
  */
 export default function ExamScreen({
+  questions = MOCK_QUESTIONS,
+  answers = {},
+  onSelectAnswer,
+  onClearAnswer,
   remainingTime,
   formatTimeLeft,
   onEndExam,
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState({});
+  const [reviewSet, setReviewSet] = useState(new Set());
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
 
-  const currentQuestion = SAMPLE_QUESTIONS[currentIndex];
+  const currentQuestion = questions[currentIndex] || questions[0];
+  const totalQuestions = questions.length;
   const isFirst = currentIndex === 0;
-  const isLast = currentIndex === SAMPLE_QUESTIONS.length - 1;
+  const isLast = currentIndex === totalQuestions - 1;
+  const isMarkedForReview = reviewSet.has(currentIndex);
+  const hasAnsweredCurrent = answers[currentIndex] !== undefined;
 
+  // Option selection
   function handleOptionSelect(optionIndex) {
-    setAnswers((prev) => ({
-      ...prev,
-      [currentIndex]: optionIndex,
-    }));
+    if (onSelectAnswer) {
+      onSelectAnswer(currentIndex, optionIndex);
+    }
   }
 
+  // Clear current question's answer
+  function handleClearCurrent() {
+    if (onClearAnswer) {
+      onClearAnswer(currentIndex);
+    }
+  }
+
+  // Toggle mark for review
+  function handleToggleReview() {
+    setReviewSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(currentIndex)) {
+        next.delete(currentIndex);
+      } else {
+        next.add(currentIndex);
+      }
+      return next;
+    });
+  }
+
+  // Navigation handlers
   function handleNext() {
     if (isLast) {
-      onEndExam();
+      setShowSubmitModal(true);
     } else {
       setCurrentIndex((prev) => prev + 1);
     }
@@ -66,53 +68,165 @@ export default function ExamScreen({
     }
   }
 
+  function handleDirectJump(index) {
+    if (index >= 0 && index < totalQuestions) {
+      setCurrentIndex(index);
+    }
+  }
+
+  const answeredCount = Object.keys(answers).length;
+  const unansweredCount = totalQuestions - answeredCount;
+
   return (
     <div className="exam-page">
       <div className="exam-container">
-        {/* Header with timer and End Test button */}
+        {/* Top Header */}
         <div className="exam-header">
-          <h3>Time Left: {formatTimeLeft(remainingTime)}</h3>
-          <button onClick={onEndExam} className="end-test-btn">
+          <div className="exam-title-meta">
+            <h3>Athena Assessment</h3>
+            <span className="exam-timer">
+              ⏱ Time Left: <strong>{formatTimeLeft(remainingTime)}</strong>
+            </span>
+          </div>
+
+          <button onClick={() => setShowSubmitModal(true)} className="end-test-btn">
             End Test
           </button>
         </div>
 
-        {/* Question Card */}
-        <div className="question-card">
-          <h2>
-            Question {currentIndex + 1} of {SAMPLE_QUESTIONS.length}
-          </h2>
-          <p>{currentQuestion.question}</p>
+        {/* Exam Body: Question Card (Left) + Question Palette (Right) */}
+        <div className="exam-layout">
+          {/* Main Question Card */}
+          <div className="question-card">
+            <div className="question-card-header">
+              <span className="question-index-badge">
+                Question {currentIndex + 1} of {totalQuestions}
+              </span>
+              {currentQuestion.category && (
+                <span className="category-pill">{currentQuestion.category}</span>
+              )}
+            </div>
 
-          <div className="options-container">
-            {currentQuestion.options.map((option, idx) => {
-              const isChecked = answers[currentIndex] === idx;
-              return (
-                <label key={idx} className="option-row">
-                  <input
-                    type="radio"
-                    name={`question-${currentQuestion.id}`}
-                    value={idx}
-                    checked={isChecked}
-                    onChange={() => handleOptionSelect(idx)}
-                  />
-                  <span>{option}</span>
-                </label>
-              );
-            })}
+            <p className="question-text">{currentQuestion.question}</p>
+
+            {/* Options list */}
+            <div className="options-container">
+              {currentQuestion.options.map((option, idx) => {
+                const isChecked = answers[currentIndex] === idx;
+                return (
+                  <label
+                    key={idx}
+                    className={`option-row ${isChecked ? "option-selected" : ""}`}
+                    onClick={() => handleOptionSelect(idx)}
+                  >
+                    <input
+                      type="radio"
+                      name={`question-${currentQuestion.id}`}
+                      value={idx}
+                      checked={isChecked}
+                      onChange={() => handleOptionSelect(idx)}
+                    />
+                    <span className="option-label">{option}</span>
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* In-Card Secondary Actions (Clear & Mark for Review) */}
+            <div className="question-secondary-actions">
+              <button
+                type="button"
+                onClick={handleToggleReview}
+                className={`btn-secondary-action ${
+                  isMarkedForReview ? "btn-review-active" : ""
+                }`}
+              >
+                {isMarkedForReview ? "★ Marked for Review" : "☆ Mark for Review"}
+              </button>
+
+              {hasAnsweredCurrent && (
+                <button
+                  type="button"
+                  onClick={handleClearCurrent}
+                  className="btn-secondary-action btn-clear"
+                >
+                  Clear Selection
+                </button>
+              )}
+            </div>
+
+            {/* Primary Navigation Buttons */}
+            <div className="navigation-buttons">
+              <button onClick={handlePrev} disabled={isFirst}>
+                ← Previous
+              </button>
+
+              <button
+                onClick={handleNext}
+                className={isLast ? "btn-submit-action" : ""}
+              >
+                {isLast ? "Submit Exam →" : "Next →"}
+              </button>
+            </div>
           </div>
 
-          {/* Navigation Controls */}
-          <div className="navigation-buttons">
-            <button onClick={handlePrev} disabled={isFirst}>
-              Previous
-            </button>
-            <button onClick={handleNext}>
-              {isLast ? "Submit Exam" : "Next"}
-            </button>
+          {/* Sidebar: Question Palette */}
+          <div className="exam-sidebar">
+            <QuestionPalette
+              totalQuestions={totalQuestions}
+              currentIndex={currentIndex}
+              answers={answers}
+              reviewSet={reviewSet}
+              onSelectQuestion={handleDirectJump}
+            />
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal before Final Submit */}
+      {showSubmitModal && (
+        <div className="modal-overlay">
+          <div className="modal-dialog">
+            <h3>Ready to Submit?</h3>
+            <p className="modal-description">
+              Please review your test progress before submitting:
+            </p>
+
+            <div className="modal-stats-grid">
+              <div className="modal-stat-box">
+                <span className="stat-number stat-answered">{answeredCount}</span>
+                <span className="stat-label">Answered</span>
+              </div>
+              <div className="modal-stat-box">
+                <span className="stat-number stat-unanswered">{unansweredCount}</span>
+                <span className="stat-label">Unanswered</span>
+              </div>
+              <div className="modal-stat-box">
+                <span className="stat-number stat-review">{reviewSet.size}</span>
+                <span className="stat-label">Marked for Review</span>
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                onClick={() => setShowSubmitModal(false)}
+                className="btn btn-outline"
+              >
+                Continue Test
+              </button>
+              <button
+                onClick={() => {
+                  setShowSubmitModal(false);
+                  onEndExam();
+                }}
+                className="btn btn-dark"
+              >
+                Confirm & Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

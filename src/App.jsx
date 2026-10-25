@@ -3,6 +3,7 @@ import CameraMonitor from "./components/CameraMonitor";
 import SetupScreen from "./components/SetupScreen";
 import ExamScreen from "./components/ExamScreen";
 import ResultScreen from "./components/ResultScreen";
+import { MOCK_QUESTIONS } from "./data/mockQuestions";
 import "./App.css";
 
 // Exam stages: "setup" -> "in-progress" -> "completed"
@@ -16,7 +17,8 @@ export default function App() {
   const [stage, setStage] = useState(STAGES.SETUP);
   const [cameraReady, setCameraReady] = useState(false);
   const [fullscreenReady, setFullscreenReady] = useState(false);
-  const [remainingTime, setRemainingTime] = useState(60 * 60 * 1000); // 60 minutes default
+  const [remainingTime, setRemainingTime] = useState(60 * 60 * 1000); // 60 minutes
+  const [userAnswers, setUserAnswers] = useState({});
 
   const cameraMonitorRef = useRef(null);
 
@@ -71,7 +73,7 @@ export default function App() {
       setFullscreenReady(true);
     } catch (err) {
       console.warn("Fullscreen request error:", err);
-      // Still mark ready to not block the user
+      // Still mark ready so the student isn't blocked
       setFullscreenReady(true);
     }
   }
@@ -98,17 +100,32 @@ export default function App() {
     setStage(STAGES.IN_PROGRESS);
   }
 
+  // Select an option for a question
+  function handleSelectAnswer(questionIndex, optionIndex) {
+    setUserAnswers((prev) => ({
+      ...prev,
+      [questionIndex]: optionIndex,
+    }));
+  }
+
+  // Clear answer for a question
+  function handleClearAnswer(questionIndex) {
+    setUserAnswers((prev) => {
+      const next = { ...prev };
+      delete next[questionIndex];
+      return next;
+    });
+  }
+
   // Conclude the exam
   function handleEndExam() {
-    const confirmEnd = window.confirm("Are you sure you want to end and submit the test?");
-    if (confirmEnd) {
-      setStage(STAGES.COMPLETED);
-    }
+    setStage(STAGES.COMPLETED);
   }
 
   // Reset back to setup screen
   function handleRestart() {
     setStage(STAGES.SETUP);
+    setUserAnswers({});
     setRemainingTime(60 * 60 * 1000);
   }
 
@@ -150,18 +167,26 @@ export default function App() {
         />
       )}
 
-      {/* Stage 2: Active Exam Screen */}
+      {/* Stage 2: Active Exam Screen with Question Bank & Palette */}
       {stage === STAGES.IN_PROGRESS && (
         <ExamScreen
+          questions={MOCK_QUESTIONS}
+          answers={userAnswers}
+          onSelectAnswer={handleSelectAnswer}
+          onClearAnswer={handleClearAnswer}
           remainingTime={remainingTime}
           formatTimeLeft={formatTimeLeft}
           onEndExam={handleEndExam}
         />
       )}
 
-      {/* Stage 3: Results / Completed Screen */}
+      {/* Stage 3: Results / Completed Screen with Scoring & Review */}
       {stage === STAGES.COMPLETED && (
-        <ResultScreen onRestart={handleRestart} />
+        <ResultScreen
+          questions={MOCK_QUESTIONS}
+          answers={userAnswers}
+          onRestart={handleRestart}
+        />
       )}
     </>
   );
