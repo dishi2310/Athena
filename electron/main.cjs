@@ -5,10 +5,13 @@ const fs = require('fs');
 let win = null;
 
 function createWindow() {
+  const iconPath = path.join(__dirname, "../public/icon.svg");
+
   win = new BrowserWindow({
     width: 1000,
     height: 700,
     frame: false,
+    icon: fs.existsSync(iconPath) ? iconPath : undefined,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
     },
@@ -94,4 +97,12 @@ ipcMain.handle("save-log", (_, logData) => {
 
 app.whenReady().then(() => {
   createWindow();
+
+  // Set macOS dock icon
+  if (process.platform === "darwin") {
+    const dockIconPath = path.join(__dirname, "../public/icon.svg");
+    if (fs.existsSync(dockIconPath)) {
+      app.dock?.setIcon(dockIconPath);
+    }
+  }
 });

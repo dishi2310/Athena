@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Gradient background -->
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#3a5a78"/>
+      <stop offset="100%" stop-color="#1a2e42"/>
+    </radialGradient>
+    <radialGradient id="eyeGrad" cx="40%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#a0d4f7"/>
+      <stop offset="100%" stop-color="#5a9fd4"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="url(#bgGrad)"/>
+
+  <!-- Outer glow ring -->
+  <circle cx="256" cy="256" r="240" fill="none" stroke="#7eb5e9" stroke-width="6" opacity="0.25"/>
+
+  <!-- Crown spikes (Athena's helmet) -->
+  <polygon points="160,178 180,100 200,178" fill="#7eb5e9" opacity="0.9"/>
+  <polygon points="236,168 256,82 276,168" fill="#a0d4f7"/>
+  <polygon points="312,178 332,100 352,178" fill="#7eb5e9" opacity="0.9"/>
+
+  <!-- Helmet band -->
+  <rect x="148" y="172" width="216" height="22" rx="11" fill="#5a9fd4" opacity="0.7"/>
+
+  <!-- Owl head circle -->
+  <circle cx="256" cy="238" r="88" fill="#263c53"/>
+  <circle cx="256" cy="238" r="84" fill="#1e3248"/>
+
+  <!-- Facial disc (heart-shaped feather ring) -->
+  <ellipse cx="256" cy="242" rx="78" ry="72" fill="none" stroke="#4a7a9b" stroke-width="8" opacity="0.4"/>
+
+  <!-- Left eye socket glow -->
+  <circle cx="218" cy="224" r="32" fill="#2a4a64" opacity="0.8"/>
+  <!-- Right eye socket glow -->
+  <circle cx="294" cy="224" r="32" fill="#2a4a64" opacity="0.8"/>
+
+  <!-- Left eye iris -->
+  <circle cx="218" cy="224" r="24" fill="url(#eyeGrad)"/>
+  <!-- Right eye iris -->
+  <circle cx="294" cy="224" r="24" fill="url(#eyeGrad)"/>
+
+  <!-- Left eye pupil -->
+  <circle cx="218" cy="224" r="13" fill="#0d1f2e"/>
+  <!-- Right eye pupil -->
+  <circle cx="294" cy="224" r="13" fill="#0d1f2e"/>
+
+  <!-- Left eye highlight -->
+  <circle cx="224" cy="218" r="6" fill="#ffffff" opacity="0.9"/>
+  <!-- Right eye highlight -->
+  <circle cx="300" cy="218" r="6" fill="#ffffff" opacity="0.9"/>
+
+  <!-- Small secondary highlight -->
+  <circle cx="213" cy="230" r="2.5" fill="#ffffff" opacity="0.5"/>
+  <circle cx="289" cy="230" r="2.5" fill="#ffffff" opacity="0.5"/>
+
+  <!-- Beak -->
+  <polygon points="256,248 238,278 274,278" fill="#e8b840"/>
+  <polygon points="256,248 245,262 256,265 267,262" fill="#c99a20"/>
+
+  <!-- Wing left -->
+  <path d="M168 280 Q80 248 72 180 Q140 240 188 268 Z" fill="#3a5a78" opacity="0.85"/>
+  <path d="M168 280 Q84 252 80 196 Q144 244 188 268 Z" fill="#7eb5e9" opacity="0.3"/>
+
+  <!-- Wing right -->
+  <path d="M344 280 Q432 248 440 180 Q372 240 324 268 Z" fill="#3a5a78" opacity="0.85"/>
+  <path d="M344 280 Q428 252 432 196 Q368 244 324 268 Z" fill="#7eb5e9" opacity="0.3"/>
+
+  <!-- Body / shield lower -->
+  <path d="M168 282 Q156 360 256 400 Q356 360 344 282 Z" fill="#1e3248" opacity="0.9"/>
+  <path d="M180 290 Q170 355 256 388 Q342 355 332 290 Z" fill="#263c53" opacity="0.6"/>
+
+  <!-- Chest feather lines -->
+  <line x1="220" y1="310" x2="256" y2="295" stroke="#4a7a9b" stroke-width="3" opacity="0.5"/>
+  <line x1="292" y1="310" x2="256" y2="295" stroke="#4a7a9b" stroke-width="3" opacity="0.5"/>
+  <line x1="210" y1="330" x2="256" y2="320" stroke="#4a7a9b" stroke-width="2.5" opacity="0.4"/>
+  <line x1="302" y1="330" x2="256" y2="320" stroke="#4a7a9b" stroke-width="2.5" opacity="0.4"/>
+
+  <!-- ATHENA text -->
+  <text x="256" y="446" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="40" font-weight="800" fill="#7eb5e9" letter-spacing="8" opacity="0.9">ATHENA</text>
+
+  <!-- Decorative underline -->
+  <rect x="148" y="456" width="216" height="3" rx="1.5" fill="#7eb5e9" opacity="0.5"/>
+</svg>
