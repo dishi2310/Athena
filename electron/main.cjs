@@ -14,6 +14,9 @@ function createWindow() {
     },
   });
 
+  // Prevent opening new tabs or external windows
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+
   win.loadURL("http://localhost:5173/").catch(() => {
     // If the Vite dev server is not running, fall back to built production files
     const distPath = path.join(__dirname, "../dist/index.html");
@@ -64,6 +67,16 @@ ipcMain.handle("save-photo", (_, arrayBuffer) => {
   const buffer = Buffer.from(arrayBuffer);
   console.log(buffer);
   fs.writeFileSync(filePath, buffer);
+});
+
+ipcMain.handle("save-log", (_, logData) => {
+  const dir = path.join(__dirname, "cameraFeed");
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  const logPath = path.join(dir, "session-logs.json");
+  fs.writeFileSync(logPath, JSON.stringify(logData, null, 2));
+  return true;
 });
 
 app.whenReady().then(() => {

@@ -3,14 +3,18 @@ import { MOCK_QUESTIONS } from "../data/mockQuestions";
 
 /**
  * ResultScreen component evaluates the student's answers,
- * calculates score and accuracy, and provides an itemized answer review.
+ * calculates score, displays proctoring integrity logs,
+ * and provides an itemized answer review.
  */
 export default function ResultScreen({
   questions = MOCK_QUESTIONS,
   answers = {},
+  violations = [],
+  terminationReason = null,
   onRestart,
 }) {
   const [showReview, setShowReview] = useState(false);
+  const [showIntegrityLog, setShowIntegrityLog] = useState(false);
 
   const totalQuestions = questions.length;
   let correctCount = 0;
@@ -29,7 +33,8 @@ export default function ResultScreen({
 
   const unattemptedCount = totalQuestions - (correctCount + incorrectCount);
   const percentage = Math.round((correctCount / totalQuestions) * 100);
-  const isPassed = percentage >= 60;
+  const isPassed = percentage >= 60 && !terminationReason;
+  const violationCount = violations.length;
 
   return (
     <div className="page-container">
@@ -39,14 +44,29 @@ export default function ResultScreen({
       </div>
 
       <div className="card-container result-card-main">
+        {/* Termination Alert if forced submit occurred */}
+        {terminationReason && (
+          <div className="termination-banner">
+            <span className="termination-icon">⛔</span>
+            <div>
+              <h4>Assessment Terminated</h4>
+              <p>{terminationReason}</p>
+            </div>
+          </div>
+        )}
+
         {/* Score Banner */}
         <div className="result-score-banner">
-          <div className="result-badge-icon">{isPassed ? "🎯" : "📝"}</div>
+          <div className="result-badge-icon">
+            {terminationReason ? "⚠️" : isPassed ? "🎯" : "📝"}
+          </div>
           <h2 className="result-score-title">
             Score: {correctCount} / {totalQuestions} ({percentage}%)
           </h2>
           <p className="result-score-subtitle">
-            {isPassed
+            {terminationReason
+              ? "Exam ended due to proctoring policy violation."
+              : isPassed
               ? "Congratulations! You successfully passed the assessment."
               : "Assessment submitted. Review the explanations below to improve."}
           </p>
@@ -70,6 +90,56 @@ export default function ResultScreen({
             <span className="metric-number">{percentage}%</span>
             <span className="metric-label">Accuracy</span>
           </div>
+        </div>
+
+        {/* Proctoring Integrity Summary Box */}
+        <div className={`integrity-summary-card ${violationCount > 0 ? "integrity-flagged" : "integrity-clean"}`}>
+          <div className="integrity-card-header">
+            <div className="integrity-status-info">
+              <span className="integrity-icon">
+                {violationCount === 0 ? "🛡️" : "⚠️"}
+              </span>
+              <div>
+                <h4>
+                  Proctoring Status:{" "}
+                  {violationCount === 0 ? "Clean Session (Verified)" : `Flagged (${violationCount} Incident${violationCount > 1 ? "s" : ""})`}
+                </h4>
+                <p>
+                  {violationCount === 0
+                    ? "No window switching, copy-paste, or focus violations detected."
+                    : `${violationCount} focus loss / window change events recorded during the active test.`}
+                </p>
+              </div>
+            </div>
+
+            {violationCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowIntegrityLog((prev) => !prev)}
+                className="btn-integrity-toggle"
+              >
+                {showIntegrityLog ? "Hide Log" : "View Incident Log"}
+              </button>
+            )}
+          </div>
+
+          {/* Detailed Incident Log Table */}
+          {showIntegrityLog && violationCount > 0 && (
+            <div className="incident-log-table">
+              <div className="incident-row incident-header-row">
+                <span>Time</span>
+                <span>Incident Type</span>
+                <span>Description</span>
+              </div>
+              {violations.map((v, i) => (
+                <div key={v.id || i} className="incident-row">
+                  <span className="incident-time">{v.timestamp}</span>
+                  <span className="incident-type">{v.type}</span>
+                  <span className="incident-reason">{v.reason}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}

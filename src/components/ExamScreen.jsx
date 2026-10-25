@@ -1,10 +1,12 @@
 import { useState } from "react";
 import QuestionPalette from "./QuestionPalette";
+import ProctoringAlerts from "./ProctoringAlerts";
+import useProctoring from "../hooks/useProctoring";
 import { MOCK_QUESTIONS } from "../data/mockQuestions";
 
 /**
  * ExamScreen component manages question display, option selections,
- * review flags, navigation, and the visual question palette.
+ * review flags, navigation, visual palette, and proctoring safeguards.
  */
 export default function ExamScreen({
   questions = MOCK_QUESTIONS,
@@ -14,10 +16,32 @@ export default function ExamScreen({
   remainingTime,
   formatTimeLeft,
   onEndExam,
+  onRecordViolations,
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reviewSet, setReviewSet] = useState(new Set());
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+
+  // Initialize anti-cheating and window blur detection
+  const {
+    violations,
+    violationCount,
+    activeWarning,
+    toastMessage,
+    dismissWarning,
+    maxWarnings,
+  } = useProctoring({
+    isActive: true,
+    onMaxViolationsExceeded: (allViolations) => {
+      if (onRecordViolations) {
+        onRecordViolations(allViolations);
+      }
+      // Give student 1.8s to see the final termination warning before submitting
+      setTimeout(() => {
+        onEndExam("Exceeded maximum allowed window focus violations (3 strikes).");
+      }, 1800);
+    },
+  });
 
   const currentQuestion = questions[currentIndex] || questions[0];
   const totalQuestions = questions.length;
@@ -74,16 +98,37 @@ export default function ExamScreen({
     }
   }
 
+  function handleConfirmSubmit() {
+    if (onRecordViolations) {
+      onRecordViolations(violations);
+    }
+    setShowSubmitModal(false);
+    onEndExam();
+  }
+
   const answeredCount = Object.keys(answers).length;
   const unansweredCount = totalQuestions - answeredCount;
 
   return (
-    <div className="exam-page">
+    <div className="exam-page unselectable-exam">
+      {/* Active Anti-Cheating Alerts & Notifications */}
+      <ProctoringAlerts
+        activeWarning={activeWarning}
+        toastMessage={toastMessage}
+        onDismissWarning={dismissWarning}
+      />
+
       <div className="exam-container">
         {/* Top Header */}
         <div className="exam-header">
           <div className="exam-title-meta">
-            <h3>Athena Assessment</h3>
+            <div className="exam-meta-row">
+              <h3>Athena Assessment</h3>
+              <span className={`proctor-status-pill ${violationCount > 0 ? "proctor-pill-warning" : "proctor-pill-active"}`}>
+                <span className="live-dot" />
+                Proctoring Active • Warnings: {violationCount}/{maxWarnings}
+              </span>
+            </div>
             <span className="exam-timer">
               ⏱ Time Left: <strong>{formatTimeLeft(remainingTime)}</strong>
             </span>
@@ -207,6 +252,12 @@ export default function ExamScreen({
               </div>
             </div>
 
+            {violationCount > 0 && (
+              <div className="modal-warning-note">
+                ⚠️ Note: {violationCount} integrity flag(s) were recorded during this session.
+              </div>
+            )}
+
             <div className="modal-actions">
               <button
                 onClick={() => setShowSubmitModal(false)}
@@ -215,10 +266,7 @@ export default function ExamScreen({
                 Continue Test
               </button>
               <button
-                onClick={() => {
-                  setShowSubmitModal(false);
-                  onEndExam();
-                }}
+                onClick={handleConfirmSubmit}
                 className="btn btn-dark"
               >
                 Confirm & Submit

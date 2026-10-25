@@ -6,4 +6,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   startTest: () => ipcRenderer.invoke("start-test"),
   showExamRules: () => ipcRenderer.invoke("show-rules"),
   savePhoto: (arrayBuffer) => ipcRenderer.invoke("save-photo", arrayBuffer),
+  saveLog: (logData) => ipcRenderer.invoke("save-log", logData),
 });

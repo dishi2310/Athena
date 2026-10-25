@@ -19,6 +19,8 @@ export default function App() {
   const [fullscreenReady, setFullscreenReady] = useState(false);
   const [remainingTime, setRemainingTime] = useState(60 * 60 * 1000); // 60 minutes
   const [userAnswers, setUserAnswers] = useState({});
+  const [violations, setViolations] = useState([]);
+  const [terminationReason, setTerminationReason] = useState(null);
 
   const cameraMonitorRef = useRef(null);
 
@@ -32,7 +34,7 @@ export default function App() {
         if (typeof ms === "number" && !isNaN(ms)) {
           if (ms <= 0) {
             setRemainingTime(0);
-            setStage(STAGES.COMPLETED);
+            handleEndExam("Exam time expired (60 minutes completed).");
             return;
           }
           setRemainingTime(ms);
@@ -43,7 +45,7 @@ export default function App() {
       // Fallback local countdown if running in normal web browser
       setRemainingTime((prev) => {
         if (prev <= 1000) {
-          setStage(STAGES.COMPLETED);
+          handleEndExam("Exam time expired (60 minutes completed).");
           return 0;
         }
         return prev - 1000;
@@ -117,15 +119,37 @@ export default function App() {
     });
   }
 
+  // Record proctoring violations
+  function handleRecordViolations(records) {
+    setViolations(records);
+  }
+
   // Conclude the exam
-  function handleEndExam() {
+  function handleEndExam(reason = null) {
+    if (reason) {
+      setTerminationReason(reason);
+    }
     setStage(STAGES.COMPLETED);
+
+    // Save session logs via Electron IPC
+    if (window.electronAPI?.saveLog) {
+      window.electronAPI.saveLog({
+        sessionId: `athena-${Date.now()}`,
+        submittedAt: new Date().toISOString(),
+        terminationReason: reason,
+        answers: userAnswers,
+        violationsCount: violations.length,
+        violationsList: violations,
+      });
+    }
   }
 
   // Reset back to setup screen
   function handleRestart() {
     setStage(STAGES.SETUP);
     setUserAnswers({});
+    setViolations([]);
+    setTerminationReason(null);
     setRemainingTime(60 * 60 * 1000);
   }
 
@@ -167,7 +191,7 @@ export default function App() {
         />
       )}
 
-      {/* Stage 2: Active Exam Screen with Question Bank & Palette */}
+      {/* Stage 2: Active Exam Screen with Proctoring & Security */}
       {stage === STAGES.IN_PROGRESS && (
         <ExamScreen
           questions={MOCK_QUESTIONS}
@@ -177,14 +201,17 @@ export default function App() {
           remainingTime={remainingTime}
           formatTimeLeft={formatTimeLeft}
           onEndExam={handleEndExam}
+          onRecordViolations={handleRecordViolations}
         />
       )}
 
-      {/* Stage 3: Results / Completed Screen with Scoring & Review */}
+      {/* Stage 3: Results / Completed Screen with Proctoring Report */}
       {stage === STAGES.COMPLETED && (
         <ResultScreen
           questions={MOCK_QUESTIONS}
           answers={userAnswers}
+          violations={violations}
+          terminationReason={terminationReason}
           onRestart={handleRestart}
         />
       )}
